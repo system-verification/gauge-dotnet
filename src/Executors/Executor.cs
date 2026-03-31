@@ -5,16 +5,26 @@ namespace Gauge.Dotnet.Executors;
 internal class Executor : IExecutor
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<Executor> _logger;
 
-    public Executor(IServiceProvider serviceProvider)
+    public Executor(IServiceProvider serviceProvider, ILogger<Executor> logger)
     {
         _serviceProvider = serviceProvider;
+        _logger = logger;
     }
 
-    public Task<TResult> Execute<TRequest, TResult>(int streamId, TRequest request)
+    public async Task<TResult> Execute<TRequest, TResult>(int streamId, TRequest request)
     {
-        var processor = _serviceProvider.GetRequiredService<IGaugeProcessor<TRequest, TResult>>();
-        var result = processor.Process(streamId, request);
-        return result;
+        try
+        {
+            var processor = _serviceProvider.GetRequiredService<IGaugeProcessor<TRequest, TResult>>();
+            return await processor.Process(streamId, request);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Execute failed for {RequestType}: {ExceptionType}: {Message}",
+                typeof(TRequest).Name, ex.GetType().Name, ex.Message);
+            throw;
+        }
     }
 }
